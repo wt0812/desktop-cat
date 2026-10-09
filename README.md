@@ -1,5 +1,7 @@
 # Desktop Cat / 桌面小猫
 
+**简体中文** | [English](README.en.md)
+
 ![桌面小猫 · 真机录屏](docs/demo.gif)
 
 一只住在 Windows 桌面上的像素猫。她会自己发呆、伸懒腰、打盹、跳舞、摔倒，
