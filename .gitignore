@@ -1,0 +1,21 @@
+# --- Runtime state: the cat's own save file (affinity, window position, log) ---
+.petdata/
+.petdata-*/
+
+# --- Build output: source goes in the repo, binaries go in Releases ---
+DesktopCat.exe
+*.pdb
+
+# --- Packaged release, built outside the repo ---
+DesktopCat-1.0/
+DesktopCat-1.0.zip
+DesktopCat-1.0.zip.new
+
+# --- Verification artifacts ---
+state-caps/
+
+# --- Local-only files: cleanup log and the optional autostart .reg pair.
+#     The .reg files hardcode a machine-specific path, and one of them
+#     disables Windows' app-reputation check -- neither belongs in a public repo.
+CLEANUP.md
+registry/

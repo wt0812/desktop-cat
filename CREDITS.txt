@@ -1,0 +1,67 @@
+CREDITS
+=======
+
+Desktop Cat draws its character from third-party pixel art.
+Full attribution follows, as required by the applicable licences.
+
+The same credit is reachable from inside the app: right-click the tray icon
+and choose "Stats & credits".
+
+--------------------------------------------------------------------------
+PRIMARY CHARACTER  --  "Cat Fighter Sprite Sheet"
+--------------------------------------------------------------------------
+  Artist : dogchicken
+  Source : https://opengameart.org/content/cat-fighter-sprite-sheet
+  Licence: CC-BY 3.0  ( https://creativecommons.org/licenses/by/3.0/ )
+
+  The sprite sheet is redistributed here UNMODIFIED. Frames are decoded at
+  runtime and their opaque blue canvas is keyed out; the art itself is not
+  edited.
+
+  Frame size 50x50. After the background is punched out, each animation has
+  its own content box, and every clip is drawn at an integer zoom with
+  nearest-neighbour filtering so the pixels stay crisp and never shimmer.
+
+  ALL 13 CLIPS ARE USED. They were assigned to moods by measured motion
+  energy (changed pixels per second) and silhouette spread, not by eye:
+
+    clip        file            fr  motion  spread   used for
+    ----------  --------------  --  ------  ------   ------------------------
+    play        cat_a5.gif      24   2988    1.39    Play, Game
+    sleep       cat_die.gif      9   2800    1.61    Sleep (nap)
+    surprise    cat_a8.gif       8   2175    1.28    Surprise
+    sad         cat_a6.gif       8   2105    1.22    Sad
+    talk        cat_a9.gif       6   1780    1.28    Talking
+    dance       cat_a3.gif      14   1388    1.22    Dancing
+    stretch     cat_a4.gif      18   1362    1.06    Stretch
+    cheer       cat_a7.gif      14   1205    1.44    Cheer (petting combo)
+    remind      cat_a2.gif      12    976    1.39    Reminder
+    pet         cat_a1.gif      19    716    1.17    Happy (being petted)
+    idle        cat_idle.gif     4   1425    1.00    Idle
+    walk        cat_walk.gif     4   1352    1.00    Walking
+    jump        cat_jump.gif    14   1451    1.00    Being carried
+
+  Notes on two of them, both measured frame by frame:
+    cat_die.gif is NOT a "fall over dead" clip. Frames 0-2 are an upright
+    crouch, 3-7 are flat on the ground (29x14 px, twice as wide as tall), and
+    frame 8 stands back up. It is "collapse, lie there, get up". Frame 6 is the
+    author's own 200 ms hold and the flattest pose, so it is stretched to
+    2000 ms to turn the clip into a real nap: fall -> lie -> get up.
+
+    cat_a1.gif is the least animated clip in the pack -- fewer changed pixels
+    per second than simply standing still. It therefore backs only the gentle
+    "being petted" wiggle, and every louder reaction got a clip of its own.
+
+  NOTE: this licence requires attribution. If you redistribute this
+  application, keep this file with it.
+
+--------------------------------------------------------------------------
+PROVENANCE AND THIRD-PARTY CHARACTERS
+--------------------------------------------------------------------------
+  The character drawn here is an original-style pixel-art cat. No asset,
+  model, or runtime belonging to any third-party character or franchise is
+  included in or required by this application. No Live2D or Cubism Core
+  runtime is used: every animation is a plain GIF decoded at runtime.
+
+  Nothing here requires network access. The application contains no
+  networking code of any kind, and collects no telemetry.
