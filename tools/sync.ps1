@@ -38,8 +38,21 @@ $git = 'git'
 #    2026-10-09 踩过一次：dry run 测不出来，因为 dry run 根本不执行推送那一段。
 function Invoke-Git {
     param([string[]]$ArgList)
-    $out = & $git -C $ROOT @ArgList 2>&1
-    return @{ Output = $out; Code = $LASTEXITCODE }
+    # Native commands write their normal progress to stderr: git push prints
+    # "To https://..." and "* [new branch] ..." on stderr.  Under
+    # $ErrorActionPreference = 'Stop' PowerShell promotes that stderr to a
+    # terminating NativeCommandError, which killed this script mid-run
+    # (GitHub got pushed, Gitee never ran).  So: relax EAP around the native
+    # call and judge success ONLY by $LASTEXITCODE.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = & $git -C $ROOT @ArgList 2>&1
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    return @{ Output = $out; Code = $code }
 }
 
 # ---------------------------------------------------------------- 代理策略
