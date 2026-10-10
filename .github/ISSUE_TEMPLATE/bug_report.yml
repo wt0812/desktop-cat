@@ -1,0 +1,69 @@
+name: 报个 Bug
+description: 她不动了、位置不对、点了没反应、菜单失灵…… 都可以在这里说
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先看一眼 README 的**已知问题**和 **FAQ**：SmartScreen 提示、杀软报毒、托盘图标、
+        拖不进 `C:\Program Files\` 这几件事那里都写了。
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 右键菜单 →「状态与署名」里能看到，或者看包里的 RELEASE-NOTES
+      placeholder: 例如 v1.1
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 版本
+      placeholder: 例如 Windows 11 23H2（设置 → 系统 → 关于）
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scale
+    attributes:
+      label: 显示缩放（右键菜单 →「大小」）
+      options:
+        - 小 75%
+        - 标准 100%
+        - 大 125%
+        - 特大 150%
+        - 不确定
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 越具体越好 —— 你点了哪里、她本来应该怎样、实际成了什么样
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎么复现
+      value: |
+        1. 双击 DesktopCat.exe
+        2. 右键 → 「大小」 → 特大
+        3. （继续写）
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: log
+    attributes:
+      label: 日志（可选，但基本能一下子定位）
+      description: 打开程序旁边的 `.petdata\pet.log`，贴最后二三十行。里面**没有**任何隐私信息。
+      render: text
+    validations:
+      required: false

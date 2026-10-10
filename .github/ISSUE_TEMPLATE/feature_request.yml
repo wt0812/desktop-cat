@@ -1,0 +1,39 @@
+name: 想要个新功能 / 新动作
+description: 想要她多会点什么，或者哪里可以改得更好
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先说一句省事的话：这是个**单进程、无依赖、无联网**的小程序，
+        所以「加个云同步」「接个在线 AI」这类需求大概不会被接受 —— 见她为什么这么实现的
+        可以看仓库里的 `DECISIONS.md`（36 条技术决策全在里面）。
+
+  - type: textarea
+    id: want
+    attributes:
+      label: 想要什么
+      description: 你希望她做什么？现在的版本里她做不到什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 为什么值得加
+      description: 什么场景下你会用到它
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: 你接受下面这些约束吗
+      options:
+        - label: 不增加联网代码
+          required: false
+        - label: 不引入第三方依赖 / 安装包体积不显著变大
+          required: false
+        - label: 动作素材必须是能商用的自由许可（CC-BY / CC0 之类）
+          required: false

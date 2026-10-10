@@ -1,0 +1,9 @@
+# 仓库里的文本一律 LF（Windows 上 clone 下来也不会变成 CRLF，diff 才不会整篇变红）
+* text=auto eol=lf
+
+# 二进制：别让 git 去猜，也别做行尾转换
+*.ico  binary
+*.png  binary
+*.gif  binary
+*.exe  binary
+*.zip  binary
