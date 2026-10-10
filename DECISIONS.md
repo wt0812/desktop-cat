@@ -512,6 +512,6 @@
 | **Release 正文的坑** | 正文走 `gh api --input <json>`，JSON 由 `RELEASE-NOTES-v1.1.md` 生成 —— 不走命令行传参，中文就不会被 Windows 代码页搞坏。tag `v1.1` 已经存在，所以 API 不会另造一个指向 main 头的 tag。 |
 | **验证** | 未登录的公网 API 查 `releases/latest` → `v1.1`；再把附件从 `releases/download/v1.1/DesktopCat-1.1.zip` **下载回来算哈希** → `93FAB87F…` 与本地发布包逐字节一致；三个 Release URL（latest / v1.1 / v1.0）全 200。 |
 | **顺带补齐** | `.gitattributes`（文本锁定 LF；图标、GIF、exe、zip 标为二进制）、`.github/ISSUE_TEMPLATE/bug_report.yml` 与 `feature_request.yml` —— 报障表单强制要「版本 / Windows 版本 / 大小档位」并请对方贴 `pet.log` 尾巴，没有这几项报障基本没法定位。v1.0 的 Release 本来就有附件（`DesktopCat-1.0.zip`，93,382 B），未动。 |
-| **只差网页上一下** | GitHub 的社交预览图（Settings → General → Social preview）只能网页上传，`gh` 没有这个接口。 |
+| **只差网页上一下** | GitHub 的社交预览图（Settings → General → Social preview）只能网页上传，`gh` 没有这个接口。已按上传要求把 1280×640 的图裁好放在 `docs/social-preview.png`（原图 1280×760 **只从顶部裁 120 px** —— 试过上下各切 60 px，底部那个仓库地址和「垫友」署名会被切掉）。 |
 | **哈希留档** | Release 附件与本地发布包一致：zip **92,385 B / `93FAB87FA6E6428913A6415BC58B1F1349046E270A7A3A98C2EF86368F53178D`**；包内 exe **54,272 B / `DD7E3E145CADA9721D90244DCB005BF762E65EAD8001F3503568E7B1C8CD6F6C`**。 |
 | **提交** | `00f7238`（规范件）与本次 D-37 记录，两个远程同步。 |
