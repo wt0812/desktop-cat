@@ -515,3 +515,13 @@
 | **只差网页上一下** | GitHub 的社交预览图（Settings → General → Social preview）只能网页上传，`gh` 没有这个接口。已按上传要求把 1280×640 的图裁好放在 `docs/social-preview.png`（原图 1280×760 **只从顶部裁 120 px** —— 试过上下各切 60 px，底部那个仓库地址和「垫友」署名会被切掉）。 |
 | **哈希留档** | Release 附件与本地发布包一致：zip **92,385 B / `93FAB87FA6E6428913A6415BC58B1F1349046E270A7A3A98C2EF86368F53178D`**；包内 exe **54,272 B / `DD7E3E145CADA9721D90244DCB005BF762E65EAD8001F3503568E7B1C8CD6F6C`**。 |
 | **提交** | `00f7238`（规范件）与本次 D-37 记录，两个远程同步。 |
+## D-38 Gitee 也建了 v1.1 发行版，README 补上国内下载口
+
+| | |
+|---|---|
+| **日期** | 2026-10-10 |
+| **背景** | 发行版原先只有 GitHub 有，而 README 的下载按钮指向 GitHub。国内读者打开 GitHub 常常很慢甚至打不开，等于拿不到包。 |
+| **决定** | 在 Gitee 建同名发行版 v1.1（标签已经推上去了，直接选它，不要另建），附件传同一份 `DesktopCat-1.1.zip`；两个 README 的下载按钮下面各加一行「国内下载」指向 `https://gitee.com/wutong2005/desktop-cat/releases/latest`。 |
+| **验证** | 把 Gitee 上的附件**下载回来算哈希** → `93FAB87F…`，与 GitHub 附件、与本地发布包**三方一致**；`/releases`、`/releases/latest`、`/releases/tag/v1.1` 和附件直链全部 200。 |
+| **同一轮完成的** | GitHub 的社交预览图上传完毕 —— 仓库页 `og:image` 已从自动生成的默认图变成自定义图，134,507 字节，正是 `docs/social-preview.png`。 |
+| **现在两个下载口** | GitHub `releases/latest` 与 Gitee `releases/latest`，两边附件同哈希（92,385 B / `93FAB87F…`）。 |

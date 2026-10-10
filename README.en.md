@@ -15,6 +15,8 @@ and start her again, and she is right back where you left her.
 
 ### ⬇ [Download DesktopCat-1.1.zip](https://github.com/wt0812/desktop-cat/releases/latest)
 
+> Mirror for China (Gitee release, usually faster): https://gitee.com/wutong2005/desktop-cat/releases/latest
+
 > Unzip it into any folder you can write to and double-click `DesktopCat.exe`.
 > The first run triggers a Windows SmartScreen prompt, because this app is not code-signed.
 > Click **More info** → **Run anyway**. Details are in [section 5](#5-about-that-security-warning-please-read-it).

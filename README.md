@@ -13,6 +13,8 @@
 
 ### ⬇ [下载 DesktopCat-1.1.zip](https://github.com/wt0812/desktop-cat/releases/latest)
 
+> 国内下载（Gitee 发行版，通常更快）：https://gitee.com/wutong2005/desktop-cat/releases/latest
+
 > 解压到任意一个你有写权限的文件夹，双击 `DesktopCat.exe` 就能用。
 > 首次运行 Windows 会提示一次 SmartScreen（因为没买代码签名证书），
 > 点「**更多信息**」→「**仍要运行**」即可 —— 详见[第五节的说明](#五关于那个安全提示请读一下)。
