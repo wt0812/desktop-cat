@@ -217,6 +217,6 @@ it contains the full attribution and a note on what each of the 13 animations is
 | [RELEASE-NOTES-v1.0.md](RELEASE-NOTES-v1.0.md) | What changed in this release, both SHA256 checksums |
 | [CHANGELOG.md](CHANGELOG.md) | Every functional iteration, Keep a Changelog format (Chinese) |
 | [RELEASE-NOTES-v1.1.md](RELEASE-NOTES-v1.1.md) | What changed in v1.1, both SHA256 checksums, measured resource use |
-| [DECISIONS.md](DECISIONS.md) | **31 engineering decision records**: why WinForms instead of Electron, why the transparent window needs `TransparencyKey`, why the mouse hook deliberately ignores the right button — all the potholes are in here |
+| [DECISIONS.md](DECISIONS.md) | **36 engineering decision records**: why WinForms instead of Electron, why the transparent window needs `TransparencyKey`, why the mouse hook deliberately ignores the right button — all the potholes are in here |
 | [CREDITS.txt](CREDITS.txt) | Full asset attribution (required by CC-BY 3.0) |
 | [tools/](tools) | Development scripts: exe packaging, offscreen state capture, deployment, probing |
