@@ -30,10 +30,10 @@ $cfgPath = Join-Path $dataDir "config.json"
 $form = New-Object DesktopCat.PetForm($root, $dataDir, $cfgPath)
 Write-Output "PetForm constructed"
 
-# ClipCount is private; read it to prove all 13 clips are registered in code.
+# ClipCount is private; read it to prove all 12 clips are registered in code.
 $mClip = $form.GetType().GetMethod("ClipCount", [System.Reflection.BindingFlags]::NonPublic -bor [System.Reflection.BindingFlags]::Instance)
 $clipCount = $mClip.Invoke($form, @())
-Write-Output ("ClipCount() = " + $clipCount + "   (expect 13)")
+Write-Output ("ClipCount() = " + $clipCount + "   (expect 12)")
 
 $mTier = $form.GetType().GetMethod("TierName", [System.Reflection.BindingFlags]::NonPublic -bor [System.Reflection.BindingFlags]::Instance)
 Write-Output ("TierName()  = '" + $mTier.Invoke($form, @()) + "'   (expect the first tier)")
@@ -87,8 +87,8 @@ $found2 = [WinFind]::Titled("stats")
 if ($found2.Count -eq 0) { Write-Output "  NONE" } else { $found2 | ForEach-Object { Write-Output ("  " + $_) } }
 
 Write-Output ""
-if ($clipCount -eq 13 -and $found2.Count -gt 0) {
-  Write-Output "RESULT: PASS - 13 clips registered and the stats/credits window opened."
+if ($clipCount -eq 12 -and $found2.Count -gt 0) {
+  Write-Output "RESULT: PASS - 12 clips registered and the stats/credits window opened."
 } else {
   Write-Output "RESULT: FAIL"
 }

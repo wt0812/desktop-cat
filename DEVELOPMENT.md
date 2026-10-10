@@ -9,7 +9,7 @@
 ```text
 pet.ps1                 <- 唯一的源代码（PowerShell 5.1 + 内嵌 C#）
 DesktopCat.ico          <- exe 图标（构建时嵌进去）
-cat-assets\             <- 像素素材（13 个 GIF）
+cat-assets\             <- 像素素材（12 个 GIF）
 tools\                  <- 构建脚本 + 验证工具
 .petdata\               <- 运行期数据（不进仓库：config.json + pet.log）
 ```

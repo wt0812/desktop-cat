@@ -33,16 +33,7 @@ TAIL|别拉尾巴！
 TAIL|喵！
 TAIL|痛啦～
 TAIL|那里不可以摸！
-SLEEPY|困了…
-SLEEPY|哈～（打哈欠）
-SLEEPY|让我眯一会儿…
-SLEEPY|眼睛睁不开了…
-SLEEPY|好困…
-WAKE|！？
-WAKE|干嘛呀～
-WAKE|吓我一跳！
-WAKE|我醒了我醒了
-WAKE|唔…吵醒我了
+
 STRETCH|伸个懒腰～
 STRETCH|唔…（伸展）
 STRETCH|坐久了要动一动～

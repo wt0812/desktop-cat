@@ -1,4 +1,4 @@
-# Desktop Cat
+﻿# Desktop Cat
 
 [简体中文](README.md) | **English**
 
@@ -13,7 +13,7 @@ and start her again, and she is right back where you left her.
 
 **Author: daijun** · **MIT licensed** · **Windows 10 / 11** · **no installer · no network access**
 
-### ⬇ [Download DesktopCat-1.0.zip](https://github.com/wt0812/desktop-cat/releases/latest)
+### ⬇ [Download DesktopCat-1.1.zip](https://github.com/wt0812/desktop-cat/releases/latest)
 
 > Unzip it into any folder you can write to and double-click `DesktopCat.exe`.
 > The first run triggers a Windows SmartScreen prompt, because this app is not code-signed.
@@ -23,7 +23,7 @@ and start her again, and she is right back where you left her.
 
 <div align="center"><sub>The artwork above, and the four poses below, are drawn by the app's own renderer — not mock-ups</sub></div>
 
-![Idle / stretching / sleeping / dancing](docs/states.png)
+![Idle / stretching / dancing / romping](docs/states.png)
 
 ![Real screenshot](docs/screenshot.png)
 
@@ -78,7 +78,7 @@ Once she is on screen:
 | `Play / 陪我玩` | Play animation |
 | `Dance / 跳舞` | Dance |
 | `Stretch / 伸懒腰` | Stretch |
-| `Nap / 睡觉` | Sleep (she sleeps longer late at night anyway) |
+| `撒欢` | Romping: a spread-limbed twirl (this slot used to be Nap) |
 | `Center on screen` | Move her back to the centre of the screen |
 | `Stats & credits` | Affection, interaction count, asset credits |
 | `Preview all animations` | Play all 13 animations in sequence |

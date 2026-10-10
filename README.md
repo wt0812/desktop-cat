@@ -1,17 +1,17 @@
-# Desktop Cat / 桌面小猫
+﻿# Desktop Cat / 桌面小猫
 
 **简体中文** | [English](README.en.md)
 
 ![桌面小猫 · 真机录屏](docs/demo.gif)
 
-一只住在 Windows 桌面上的像素猫。她会自己发呆、伸懒腰、打盹、跳舞、摔倒，
+一只住在 Windows 桌面上的像素猫。她会自己发呆、伸懒腰、跳舞、撒欢，
 偶尔提醒你该休息了。你摸她，她会理你，好感度会慢慢涨。
 
 她记得自己待在哪、你摸过她多少次 —— 关掉再开，她还在原来的地方。
 
 **程序作者：daijun** · **MIT 开源** · **Windows 10 / 11** · **免安装 · 无联网**
 
-### ⬇ [下载 DesktopCat-1.0.zip](https://github.com/wt0812/desktop-cat/releases/latest)
+### ⬇ [下载 DesktopCat-1.1.zip](https://github.com/wt0812/desktop-cat/releases/latest)
 
 > 解压到任意一个你有写权限的文件夹，双击 `DesktopCat.exe` 就能用。
 > 首次运行 Windows 会提示一次 SmartScreen（因为没买代码签名证书），
@@ -21,7 +21,7 @@
 
 <div align="center"><sub>上面这张主图和下面的四条状态，都是程序自己的渲染代码画出来的，不是画的示意图</sub></div>
 
-![发呆 / 伸懒腰 / 睡觉 / 跳舞](docs/states.png)
+![发呆 / 伸懒腰 / 跳舞 / 撒欢](docs/states.png)
 
 ![真机截图](docs/screenshot.png)
 
@@ -67,14 +67,14 @@
 
 | 菜单项 | 作用 |
 | --- | --- |
-| `Say hi / 摸摸头` | 摸她一下 |
-| `Play / 陪我玩` | 陪玩动画 |
-| `Dance / 跳舞` | 跳舞 |
-| `Stretch / 伸懒腰` | 伸懒腰 |
-| `Nap / 睡觉` | 睡觉（深夜她本来也睡得更久） |
+| `摸摸头` | 摸她一下，涨好感度 |
+| `陪我玩` | 陪玩动画（最活跃的一个） |
+| `跳舞` | 跳舞 |
+| `伸懒腰` | 伸懒腰 |
+| `撒欢` | 撒欢：四肢张开的转体扑腾（原来的「睡觉」这一格） |
 | `Center on screen` | 把她挪回屏幕中央 |
 | `Stats & credits` | 好感度、互动次数、素材署名 |
-| `Preview all animations` | 把 13 个动画依次放一遍 |
+| `Preview all animations` | 把 12 个动画依次放一遍 |
 | **`Quiet mode / 安静模式`** | 勾上后**一声不吭**：不弹气泡、不主动换动画，连休息提醒都不提。摸头、拖拽、菜单照常 |
 | **`Lock position / 锁定位置`** | 勾上后**拖不动**，防止手滑把她拖走。摸头摸身照常 |
 | `Reset affection` | 好感度清零 |
@@ -186,7 +186,7 @@ SHA256 可以校验；完全不想跑 exe 的话，也可以直接用 PowerShell
 作者 **dogchicken**。
 
 按 CC-BY 3.0 的要求，**再分发时请保留随包的 [CREDITS.txt](CREDITS.txt)** ——
-里面有完整署名，以及 13 个动画各自的用途说明。
+里面有完整署名，以及 12 个动画各自的用途说明。
 
 ---
 

@@ -61,10 +61,16 @@ if (-not $gotInstance) {
     Note "another instance already running - exiting"
     Set-Content -Path $LAUNCHF -Value "ALREADY_RUNNING" -Encoding ASCII
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+    # Built from code points because this file has to stay pure ASCII, and
+    # PowerShell 5.1 has no \uXXXX escape of its own (that is C# syntax).
+    # Word for word the same as the C# guard in Program.Main, which is the path
+    # the packaged exe takes. Source text: tools\info-strings.txt lines 34, 35.
+    $zhTitle = (-join ([char[]]@(0x684C, 0x9762, 0x5C0F, 0x732B))) + " Desktop Cat"
+    $zhLine1 = -join ([char[]]@(0x5DF2, 0x7ECF, 0x6709, 0x4E00, 0x53EA, 0x732B, 0x54AA, 0x5728, 0x684C, 0x9762, 0x4E0A, 0x5566, 0x3002))
+    $zhLine2 = -join ([char[]]@(0x5982, 0x679C, 0x627E, 0x4E0D, 0x5230, 0x5979, 0xFF0C, 0x53F3, 0x952E, 0x4EFB, 0x52A1, 0x680F, 0x6258, 0x76D8, 0x91CC, 0x7684, 0x732B, 0x56FE, 0x6807, 0xFF0C, 0x9009, 0x300C, 0x9000, 0x51FA, 0x300D, 0xFF0C, 0x518D, 0x91CD, 0x65B0, 0x53CC, 0x51FB, 0x4E00, 0x6B21, 0x3002))
     [System.Windows.Forms.MessageBox]::Show(
-        "Desktop Cat is already running. Look for her on your desktop." + [Environment]::NewLine + [Environment]::NewLine +
-        "If you cannot find her, right-click the tray icon and choose Quit, then start again.",
-        "Desktop Cat") | Out-Null
+        $zhLine1 + [Environment]::NewLine + [Environment]::NewLine + $zhLine2,
+        $zhTitle) | Out-Null
     exit 0
 }
 
@@ -101,7 +107,7 @@ namespace DesktopCat
     // Idle so it can be pushed aside; Surprise sits above Game so a startle wins.
     public enum PetState
     {
-        Idle = 0, Stretch = 30, Sleep = 50, Sad = 55, Happy = 60,
+        Idle = 0, Stretch = 30, Sad = 55, Happy = 60,
         Play = 65, Dancing = 70, Cheer = 75, Game = 80, Surprise = 85,
         Talking = 90, Reminder = 100
     }
@@ -123,6 +129,10 @@ namespace DesktopCat
         public int Affinity = 0;
         public int Interactions = 0;
         public bool TopMost = true;
+        // Overall size as a percentage of the default 340x460 window. A reviewer
+        // put it plainly -- the size cannot be adjusted -- so this is now a menu
+        // choice and it persists. 50..200, clamped on load.
+        public int Scale = 100;
     }
 
     // --------------------------------------------------- global mouse watching
@@ -337,22 +347,8 @@ namespace DesktopCat
             "\u75db\u5566\uff5e",
             "\u90a3\u91cc\u4e0d\u53ef\u4ee5\u6478\uff01"
         };
-        static readonly string[] SLEEPY =
-        {
-            "\u56f0\u4e86\u2026",
-            "\u54c8\uff5e\uff08\u6253\u54c8\u6b20\uff09",
-            "\u8ba9\u6211\u772f\u4e00\u4f1a\u513f\u2026",
-            "\u773c\u775b\u7741\u4e0d\u5f00\u4e86\u2026",
-            "\u597d\u56f0\u2026"
-        };
-        static readonly string[] WAKE =
-        {
-            "\uff01\uff1f",
-            "\u5e72\u561b\u5440\uff5e",
-            "\u5413\u6211\u4e00\u8df3\uff01",
-            "\u6211\u9192\u4e86\u6211\u9192\u4e86",
-            "\u5514\u2026\u5435\u9192\u6211\u4e86"
-        };
+
+
         static readonly string[] STRETCH =
         {
             "\u4f38\u4e2a\u61d2\u8170\uff5e",
@@ -433,6 +429,9 @@ namespace DesktopCat
         readonly Stopwatch clock = Stopwatch.StartNew();
         readonly Random rnd = new Random();
         readonly Dictionary<PetState, StateInfo> table = new Dictionary<PetState, StateInfo>();
+        // The heartbeat. A field, not a local: a Timer that nothing references
+        // gets collected and quietly stops ticking.
+        System.Windows.Forms.Timer heartbeat;
 
         PetState state = PetState.Idle;
         long stateEnteredMs = 0;
@@ -510,7 +509,7 @@ namespace DesktopCat
         // the art cannot be looked at directly:
         //
         //   a5 2988 px/s spread 1.39  -> Play / Game   (busiest clip in the pack)
-        //   die 2800      spread 1.61  -> Sleep         (only clip that lies flat)
+
         //   a8 2175       spread 1.28  -> Surprise      (short + punchy, 720 ms)
         //   a6 2105       spread 1.22  -> Sad
         //   a9 1780       spread 1.28  -> Talking       (shortest clip, 600 ms)
@@ -523,7 +522,7 @@ namespace DesktopCat
         // a1 is the LEAST animated clip in the pack -- fewer changed pixels per
         // second than simply standing idle -- which is why it is only used for the
         // gentle petting wiggle, and every louder reaction got its own clip.
-        GifClip clipIdle, clipWalk, clipJump, clipPet, clipSleep, clipSad;
+        GifClip clipIdle, clipWalk, clipJump, clipPet, clipSad;
         GifClip clipPlay, clipDance, clipStretch, clipCheer, clipSurprise, clipTalk, clipRemind;
         bool spritesOk = false;
         long clipOverrideUntilMs = 0;
@@ -542,6 +541,10 @@ namespace DesktopCat
         // divided by 100, so the bar sat full from a fifth of the maximum.
         const int AFFINITY_MAX = 400;
         int spriteScale = 5;
+        // The user's size preference as a fraction. InitDpi() has already folded
+        // the monitor DPI into W/H by the time this is applied, so the two
+        // multiply: a 150% display and a 125% preference give 1.5 * 1.25.
+        double userScale = 1.0;
         // Always 0 today; kept as the hook for tilting her when she is carried.
         double spriteAngle = 0;
         double spriteBob = 0;
@@ -558,7 +561,7 @@ namespace DesktopCat
 
             table[PetState.Idle] = new StateInfo(PetState.Idle, 0, 0, true);
             table[PetState.Stretch] = new StateInfo(PetState.Stretch, 30, 1700, true);
-            table[PetState.Sleep] = new StateInfo(PetState.Sleep, 50, 4000, true);
+
             table[PetState.Sad] = new StateInfo(PetState.Sad, 55, 1600, true);
             table[PetState.Happy] = new StateInfo(PetState.Happy, 60, 1800, true);
             table[PetState.Play] = new StateInfo(PetState.Play, 65, 2600, true);
@@ -570,6 +573,10 @@ namespace DesktopCat
             table[PetState.Reminder] = new StateInfo(PetState.Reminder, 100, 5000, true);
 
             LoadConfig();
+            // Fold the saved size preference into W/H BEFORE the sprites are
+            // fitted, because FitSpriteScale() derives the zoom from W. The form
+            // itself is sized further down from these same W/H.
+            ApplyScale(cfg.Scale / 100.0, false);
             LoadSprites();
 
             FormBorderStyle = FormBorderStyle.None;
@@ -594,13 +601,20 @@ namespace DesktopCat
 
             int sw = Screen.PrimaryScreen.WorkingArea.Width;
             int sh = Screen.PrimaryScreen.WorkingArea.Height;
-            if (cfg.X < 0 || cfg.Y < 0)
+            // -1/-1 is the "never saved a position" sentinel and nothing else. Y
+            // may now be NEGATIVE on purpose: the window is taller than the art,
+            // so her head only reaches the top edge while the window hangs off it.
+            if (!(cfg.X == -1 && cfg.Y == -1))
+            {
+                // a real saved position -- keep it, even a negative one
+            }
+            else
             {
                 cfg.X = sw - W - 40;
                 cfg.Y = sh - H - 20;
             }
             cfg.X = Math.Max(0, Math.Min(cfg.X, sw - W));
-            cfg.Y = Math.Max(0, Math.Min(cfg.Y, sh - H));
+            cfg.Y = Math.Max(-ArtworkTopRoom(), Math.Min(cfg.Y, sh - H));
             Location = new Point(cfg.X, cfg.Y);
 
             // Restore previous state if set
@@ -623,19 +637,35 @@ namespace DesktopCat
             // stops the reminder firing immediately at launch (see the field).
             nextReminderMs = clock.ElapsedMilliseconds + 7 * 60000 + rnd.Next(0, 7 * 60000);
 
-            Application.Idle += OnIdle;
+            // ------------------------------------------------------ heartbeat
+            //
+            //  The state machine, the micro-behaviour deadlines and StepWalk --
+            //  which slides the window 5 px per tick -- all used to be driven by
+            //  Application.Idle. Application.Idle is not a clock: it fires once
+            //  when the message queue drains, and then the thread blocks in
+            //  GetMessage until a message arrives. In v1.0 the unconditional
+            //  Invalidate() at the end of OnIdle was what kept posting WM_PAINT,
+            //  and that is what kept this whole program ticking, several hundred
+            //  to a few thousand times a second.
+            //
+            //  Gating the repaint -- the fix for the 78 %-of-a-core idle cost --
+            //  silently took the heartbeat away with it. Measured with an
+            //  instrument that forces a walk and counts how often her position
+            //  changes, inside a message loop nothing else feeds: she moved
+            //  exactly ONE step of 5 px in 2 s, 2.5 px/s. She was not walking,
+            //  she was twitching once per repaint, and the user saw it as
+            //  "much choppier than the git version".
+            //
+            //  So the heartbeat is explicit now, and the paint stays gated and
+            //  frame-driven on top of it. 15 ms is about 64 Hz: enough for
+            //  smooth motion, and the tick itself only compares numbers, so a
+            //  still cat still costs almost nothing.
+            heartbeat = new System.Windows.Forms.Timer();
+            heartbeat.Interval = 15;
+            heartbeat.Tick += OnIdle;
+            heartbeat.Start();
         }
 
-        // Stretches one frame's on-screen time and recomputes the clip total.
-        // Used to turn cat_die's 80 ms "collapse and bounce back up" into a nap.
-        static void StretchFrame(GifClip c, int index, int ms)
-        {
-            if (c == null || c.Frames == null) return;
-            if (index < 0 || index >= c.Frames.Length) return;
-            c.Frames[index].DelayMs = ms;
-            c.TotalMs = 0;
-            for (int i = 0; i < c.Frames.Length; i++) c.TotalMs += c.Frames[i].DelayMs;
-        }
 
         // ---------------------------------------------------------------------
         //  Load the Cat Fighter sprites and work out the integer zoom.
@@ -671,7 +701,7 @@ namespace DesktopCat
                 clipWalk = LoadFirst(spriteDir, "walk", "cat_walk_new.gif", "cat_walk.gif");
                 clipJump = LoadFirst(spriteDir, "jump", "cat_jump.gif");
                 clipPet = LoadFirst(spriteDir, "pet", "cat_a1.gif");
-                clipSleep = LoadFirst(spriteDir, "sleep", "cat_die.gif");
+
 
                 // Sad gets its own clip. Ranked by measured motion energy,
                 // cat_a6 is 2105 px/s against cat_a1's 716 -- nearly triple the
@@ -695,7 +725,7 @@ namespace DesktopCat
                 // Continuous cycles repeat; reaction / fall-over / lie-down
                 // clips play once and then hold their final frame.
                 if (clipJump != null) clipJump.Loop = false;
-                if (clipSleep != null) clipSleep.Loop = false;
+
                 if (clipPet != null) clipPet.Loop = false;
                 if (clipSad != null) clipSad.Loop = false;
                 if (clipStretch != null) clipStretch.Loop = false;
@@ -705,40 +735,6 @@ namespace DesktopCat
                 // clipPlay, clipDance and clipCheer deliberately keep Loop = true:
                 // they back sustained moods rather than one-shot reactions.
 
-                // cat_die's first three frames are all upright -- measured content
-                // boxes are 18x29, 18x29 and 19x29 -- so at the authored 80/80/200
-                // ms they put the cat on screen standing still for 360 ms before
-                // anything happens. That is precisely the report of "three standing
-                // images in a row, and the standing image is still there after she
-                // has already fallen".
-                //
-                // The frames DO contain motion (pixel-diffing consecutive frames
-                // shows 7-9% of pixels changing, so they are a real anticipation
-                // pose, not a frozen frame), which is why they are kept but
-                // collapsed to 1 ms each: one painted frame, effectively a skip,
-                // preserving the pose while removing the dead time.
-                StretchFrame(clipSleep, 0, 1);
-                StretchFrame(clipSleep, 1, 1);
-                StretchFrame(clipSleep, 2, 50);
-                //
-                // Frame map of the fall, all 9 frames sharing one 30x30 box (so the
-                // drawn rectangle is a constant 210x210 and the sprite cannot
-                // shrink or grow mid-fall -- that was the old flicker):
-                //   f0-f2 upright crouch   -> f3 sprawl (29x30) -> f4,f5 prone
-                //   f6 the author's own 200 ms hold, and the flattest prone pose
-                //   f7,f8 prone variants
-                //
-                // There is NO get-up frame: the clip ends lying down, and with
-                // Loop = false it HOLDS that last frame. So stretching f6 turns the
-                // same clip into a real nap -- fall, lie asleep, and she only stands
-                // up when the Sleep state ends.
-                StretchFrame(clipSleep, 6, 2000);
-                //
-                // f7 and f8 come AFTER that 2 s hold and are still prone. Left at
-                // their authored 80 ms they make the settled, apparently-asleep cat
-                // twitch twice before the clip ends, so they are collapsed too.
-                StretchFrame(clipSleep, 7, 1);
-                StretchFrame(clipSleep, 8, 1);
 
                 // Diagnostic: prove transparency punching worked. Before the
                 // fix every frame measured 50x50 (fully opaque); with the GCE
@@ -758,18 +754,10 @@ namespace DesktopCat
                 // Measured: 7x -> 126x210 px.  9x (the oversized one) -> 162x270.
                 // 96-dpi units; InitDpi() has already applied dpiScale, so on the
                 // 150% display this is 189 device px -> 189/18 = a clean 10x zoom.
-                int TARGET_W = S(126);
                 int fw = clipIdle.Frames[0].Bmp.Width;
                 int fh = clipIdle.Frames[0].Bmp.Height;
 
-                int byWidth = TARGET_W / fw;                    // 126/18 = 7
-                int maxFitW = (W - S(20)) / fw;
-
-                // Clamp to the narrowest real limit. No height term: at 7x the
-                // cat is 210 px tall inside a 460 px window, so height is never
-                // the binding constraint and including it only produced a
-                // confusing off-by-one (it silently forced 6x).
-                spriteScale = Math.Max(1, Math.Min(byWidth, maxFitW));
+                FitSpriteScale();
 
                 spritesOk = true;
                 WriteLaunchOutcome("OK");
@@ -847,6 +835,79 @@ namespace DesktopCat
             catch (Exception ex) { Note("hook failed: " + ex.Message); }
         }
 
+        // Where the last painted frame actually landed, in CLIENT coordinates.
+        // The old hit test used SpriteLeft/SpriteTop, which describe the IDLE
+        // clip only: a wider pose (cheer is 26 px wide against idle's 18) stuck
+        // out of that box, and the transparent margin inside it accepted clicks
+        // that were nowhere near the cat.
+        Bitmap hitBmp;
+        Rectangle hitDest = Rectangle.Empty;
+        bool hitFlip;
+
+        // Vertical room between the top of the WINDOW and the top of the art.
+        // Uses the tallest clip, so she can always be dragged until her ears
+        // touch the screen's top edge, whichever pose she is in at the time.
+        int ArtworkTopRoom()
+        {
+            GifClip[] every = { clipIdle, clipWalk, clipJump, clipPet, clipSad,
+                                clipPlay, clipDance, clipStretch, clipCheer,
+                                clipSurprise, clipTalk, clipRemind };
+            int tallest = SpriteH;
+            for (int i = 0; i < every.Length; i++)
+            {
+                if (every[i] == null || every[i].Frames == null || every[i].Frames.Length == 0) continue;
+                int hh = every[i].Frames[0].Bmp.Height * spriteScale;
+                if (hh > tallest) tallest = hh;
+            }
+            int room = H - S(34) - tallest;
+            return room < 0 ? 0 : room;
+        }
+
+        // True only when the point is over a pixel the cat actually painted.
+        bool HitCat(int sx, int sy)
+        {
+            if (!spritesOk || hitBmp == null || hitDest.Width <= 0 || hitDest.Height <= 0) return false;
+            int lx = sx - Location.X;
+            int ly = sy - Location.Y;
+            int pad = S(3);
+            if (lx < hitDest.Left - pad || lx > hitDest.Right + pad) return false;
+            if (ly < hitDest.Top - pad || ly > hitDest.Bottom + pad) return false;
+            if (spriteAngle != 0) return true;          // rotated: keep the box test
+            double fx = (lx - hitDest.Left) / (double)hitDest.Width;
+            if (hitFlip) fx = 1.0 - fx;
+            double fy = (ly - hitDest.Top) / (double)hitDest.Height;
+            int ix = (int)Math.Floor(fx * hitBmp.Width);
+            int iy = (int)Math.Floor(fy * hitBmp.Height);
+            // Background is punched to alpha 0, so alpha is the whole test.
+            for (int oy = -1; oy <= 1; oy++)
+                for (int ox = -1; ox <= 1; ox++)
+                {
+                    int x = ix + ox, y = iy + oy;
+                    if (x < 0 || y < 0 || x >= hitBmp.Width || y >= hitBmp.Height) continue;
+                    if (hitBmp.GetPixel(x, y).A >= 40) return true;
+                }
+            return false;
+        }
+
+        // A window-level guard on top of the pixel test: a hit test that does not
+        // land on her artwork belongs to whatever is underneath, never to her.
+        const int WM_NCHITTEST = 0x0084;
+        const int HTTRANSPARENT = -1;
+        const int HTCLIENT = 1;
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_NCHITTEST)
+            {
+                int lp = m.LParam.ToInt32();
+                int sx = (short)(lp & 0xFFFF);
+                int sy = (short)((lp >> 16) & 0xFFFF);
+                m.Result = (IntPtr)(HitCat(sx, sy) ? HTCLIENT : HTTRANSPARENT);
+                return;
+            }
+            base.WndProc(ref m);
+        }
+
         // Fired for every left click anywhere on the desktop.
         void OnGlobalClick(int sx, int sy)
         {
@@ -857,14 +918,11 @@ namespace DesktopCat
             // relative position instead of one head circle, so the head, the body
             // and the tail each react differently -- patting the tail is not the
             // same act as patting the head.
-            if (spritesOk)
+            if (HitCat(sx, sy))
             {
-                float pad = 10f;
-                float bx = Location.X + SpriteLeft;
-                float by = Location.Y + SpriteTop;
-                if (sx >= bx - pad && sx <= bx + SpriteW + pad &&
-                    sy >= by - pad && sy <= by + SpriteH + pad)
                 {
+                    float bx = Location.X + hitDest.Left;
+                    float by = Location.Y + hitDest.Top;
                     lastPatMs = now;
                     float relY = (sy - by) / (float)SpriteH;          // 0 = top, 1 = feet
                     float relX = (sx - bx) / (float)SpriteW;          // 0 = left, 1 = right
@@ -945,8 +1003,7 @@ namespace DesktopCat
         string Pick(string[] a) { return a[rnd.Next(a.Length)]; }
 
         // ---------------------------------------------------------- personality
-        // The greeting and her willingness to nap both follow the clock.
-        static bool IsNightHour() { int h = DateTime.Now.Hour; return h >= 23 || h < 5; }
+
 
         static string[] GreetLines()
         {
@@ -983,6 +1040,25 @@ namespace DesktopCat
         // brand-new program's tray icon into the hidden overflow by default, which
         // made the menu, and with it Quit, effectively unreachable. Right-clicking
         // her is now the dependable way in, and it needs no tray at all.
+        // 75/100/125/150 -- the four entries of the size submenu.
+        static readonly int[] ScalePcts = new int[] { 75, 100, 125, 150 };
+        ToolStripMenuItem[] scaleItems = null;
+
+        // Exactly one size entry is ticked: the one closest to the live scale.
+        void SyncScaleMenu()
+        {
+            if (scaleItems == null) return;
+            int best = 0;
+            for (int i = 0; i < scaleItems.Length && i < ScalePcts.Length; i++)
+            {
+                if (Math.Abs(cfg.Scale - ScalePcts[i]) < Math.Abs(cfg.Scale - ScalePcts[best])) best = i;
+            }
+            for (int i = 0; i < scaleItems.Length; i++)
+            {
+                if (scaleItems[i] != null) scaleItems[i].Checked = (i == best);
+            }
+        }
+
         ContextMenuStrip BuildMenu()
         {
             var menu = new ContextMenuStrip();
@@ -991,40 +1067,75 @@ namespace DesktopCat
             // the difference between "the wrong menu" and "the click never arrived".
             menu.Opening += delegate { Note("menu opening"); };
             menu.ItemClicked += delegate(object src, ToolStripItemClickedEventArgs a) { Note("menu item clicked: " + a.ClickedItem.Text); };
-            menu.Items.Add(new ToolStripMenuItem("Say hi / \u6478\u6478\u5934", null, delegate { Pet(true); }));
-            menu.Items.Add(new ToolStripMenuItem("Play / \u966a\u6211\u73a9", null, delegate { SetState(PetState.Play, 2600, true); Bubble(Pick(PLAY), 2000); }));
-            menu.Items.Add(new ToolStripMenuItem("Dance / \u8df3\u821e", null, delegate { SetState(PetState.Dancing, 3000, true); Bubble(Pick(DANCE), 2000); }));
-            menu.Items.Add(new ToolStripMenuItem("Stretch / \u4f38\u61d2\u8170", null, delegate { SetState(PetState.Stretch, 1700, true); Bubble(Pick(STRETCH), 1600); }));
-            menu.Items.Add(new ToolStripMenuItem("Nap / \u7761\u89c9", null, delegate { SetState(PetState.Sleep, 6000, true); }));
+
+            // The whole menu is Chinese now. It used to be a mix -- "Play / <hanzi>"
+            // sitting next to a bare "Quit" and "Center on screen" -- and a
+            // reviewer called that out in so many words: the translation was
+            // incomplete, and their line was "half translated is not translated at
+            // all -- where is the Chinese for quit? i18n". Half-translated reads
+            // worse than either extreme. Chinese is written as \uXXXX escapes
+            // because this file has to stay pure ASCII; tools\menu-strings.txt
+            // holds the source text these escapes were generated from.
+            menu.Items.Add(new ToolStripMenuItem("\u6478\u6478\u5934", null, delegate { Pet(true); }));
+            menu.Items.Add(new ToolStripMenuItem("\u966a\u6211\u73a9", null, delegate { SetState(PetState.Play, 2600, true); Bubble(Pick(PLAY), 2000); }));
+            menu.Items.Add(new ToolStripMenuItem("\u8df3\u821e", null, delegate { SetState(PetState.Dancing, 3000, true); Bubble(Pick(DANCE), 2000); }));
+            menu.Items.Add(new ToolStripMenuItem("\u4f38\u61d2\u8170", null, delegate { SetState(PetState.Stretch, 1700, true); Bubble(Pick(STRETCH), 1600); }));
+            menu.Items.Add(new ToolStripMenuItem("\u6492\u6b22", null, delegate { SetState(PetState.Cheer, 2400, true); Bubble(Pick(PETTED_MANY), 1800); }));
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("Center on screen", null, delegate { CenterOn(); }));
-            menu.Items.Add(new ToolStripMenuItem("Stats & credits", null, delegate { ShowInfo(); }));
-            menu.Items.Add(new ToolStripMenuItem("Preview all animations", null, delegate { StartPreview(); }));
+            menu.Items.Add(new ToolStripMenuItem("\u56de\u5230\u5c4f\u5e55\u4e2d\u592e", null, delegate { CenterOn(); }));
+            menu.Items.Add(new ToolStripMenuItem("\u72b6\u6001\u4e0e\u7f72\u540d", null, delegate { ShowInfo(); }));
+            menu.Items.Add(new ToolStripMenuItem("\u9884\u89c8\u6240\u6709\u52a8\u4f5c", null, delegate { StartPreview(); }));
+
+            // ---- size ----
+            // The tick is NOT computed here any more. It used to be, once, at
+            // startup -- BuildMenu() only runs when the form and the tray icon are
+            // created, so the menu kept showing whatever size was current back
+            // then, however many times the size was actually changed. It is
+            // re-derived from the live cfg.Scale instead: on every open of this
+            // submenu, and right after a size is picked.
+            var miSize = new ToolStripMenuItem("\u5927\u5c0f");
+            int[] pct = new int[] { 75, 100, 125, 150 };
+            string[] lbl = new string[] { "\u5c0f", "\u6807\u51c6", "\u5927", "\u7279\u5927" };
+            scaleItems = new ToolStripMenuItem[pct.Length];
+            for (int i = 0; i < pct.Length; i++)
+            {
+                // p is declared inside the loop on purpose: a captured for-loop
+                // variable is shared between iterations before C# 5, which would
+                // make every entry apply the last value.
+                int p = pct[i];
+                var mi = new ToolStripMenuItem(lbl[i] + "  " + p + "%");
+                scaleItems[i] = mi;
+                mi.Click += delegate { ApplyScale(p / 100.0, true); SyncScaleMenu(); Note("scale -> " + p + "%"); };
+                miSize.DropDownItems.Add(mi);
+            }
+            miSize.DropDownOpening += delegate { SyncScaleMenu(); };
+            SyncScaleMenu();
+            menu.Items.Add(miSize);
             menu.Items.Add(new ToolStripSeparator());
 
             // "Do not disturb" switches. CheckOnClick flips Checked BEFORE the
             // Click handler runs, so reading it there gives the new value. The
             // menu is rebuilt on every open, so the ticks always tell the truth.
-            var miQuiet = new ToolStripMenuItem("Quiet mode / \u5b89\u9759\u6a21\u5f0f");
+            var miQuiet = new ToolStripMenuItem("\u5b89\u9759\u6a21\u5f0f");
             miQuiet.CheckOnClick = true;
             miQuiet.Checked = quiet;
             miQuiet.Click += delegate { quiet = miQuiet.Checked; SaveConfig(); Note("quiet -> " + quiet); };
             menu.Items.Add(miQuiet);
 
-            var miLock = new ToolStripMenuItem("Lock position / \u9501\u5b9a\u4f4d\u7f6e");
+            var miLock = new ToolStripMenuItem("\u9501\u5b9a\u4f4d\u7f6e");
             miLock.CheckOnClick = true;
             miLock.Checked = locked;
             miLock.Click += delegate { locked = miLock.Checked; SaveConfig(); Note("locked -> " + locked); };
             menu.Items.Add(miLock);
 
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("Reset affection", null, delegate
+            menu.Items.Add(new ToolStripMenuItem("\u91cd\u7f6e\u597d\u611f\u5ea6", null, delegate
             {
                 cfg.Affinity = 0; cfg.Interactions = 0; comboCount = 0;
                 SaveConfig(); Bubble("...", 1500);
             }));
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("Quit", null, delegate { Quit(); }));
+            menu.Items.Add(new ToolStripMenuItem("\u9000\u51fa", null, delegate { Quit(); }));
             return menu;
         }
 
@@ -1043,7 +1154,7 @@ namespace DesktopCat
                 }
                 tray = new NotifyIcon();
                 tray.Icon = Icon.FromHandle(bmp.GetHicon());
-                tray.Text = "Desktop Cat";
+                tray.Text = "\u684c\u9762\u5c0f\u732b Desktop Cat";
                 tray.Visible = true;
                 tray.ContextMenuStrip = BuildMenu();
                 tray.DoubleClick += delegate { Pet(true); };
@@ -1099,46 +1210,52 @@ namespace DesktopCat
             int span = nextAt - nowTier;
             int into = cfg.Affinity - nowTier;
             string progress = (span <= 0)
-                ? "(top tier reached)"
-                : (into + " / " + span + " toward the next tier");
+                ? "\u5df2\u8fbe\u5230\u6700\u9ad8\u7ea7"
+                : (into + " / " + span);
 
+            // Chinese throughout, built from \uXXXX escapes so this file stays
+            // pure ASCII. Labels are padded to five cells with U+3000 (an
+            // ideographic space, exactly 1 em wide in Microsoft YaHei UI) so the
+            // colons line up regardless of a label being 3 or 4 characters.
+            // Source text: tools\info-strings.txt.
             string n = Environment.NewLine;
             string body =
-                "Desktop Cat" + n +
+                "\u684c\u9762\u5c0f\u732b Desktop Cat" + n +
                 "-------------------------------------------------------------" + n +
-                "Affection      : " + cfg.Affinity + "  (" + TierName() + ")" + n +
-                "Next tier      : " + progress + n +
-                "Interactions   : " + cfg.Interactions + n +
-                "Animations     : " + ClipCount() + " clips in use" + n +
-                "Running for    : " + (int)(clock.ElapsedMilliseconds / 1000) + " s" + n +
-                "Position       : " + Location.X + ", " + Location.Y + n +
-                "Topmost        : " + (cfg.TopMost ? "yes" : "no") + n +
-                "Data folder    : " + dataDir + n +
+                "\u597d\u611f\u5ea6\u3000\u3000\uff1a" + cfg.Affinity + "\u3000\uff08" + TierName() + "\uff09" + n +
+                "\u8ddd\u4e0b\u4e00\u7ea7\u3000\uff1a" + progress + n +
+                "\u4e92\u52a8\u6b21\u6570\u3000\uff1a" + cfg.Interactions + n +
+                "\u52a8\u753b\u6570\u91cf\u3000\uff1a" + ClipCount() + "\u4e2a\u52a8\u4f5c" + n +
+                "\u672c\u6b21\u8fd0\u884c\u3000\uff1a" + (int)(clock.ElapsedMilliseconds / 1000) + "\u79d2" + n +
+                "\u5c4f\u5e55\u4f4d\u7f6e\u3000\uff1a" + Location.X + ", " + Location.Y + n +
+                "\u7a97\u53e3\u7f6e\u9876\u3000\uff1a" + (cfg.TopMost ? "\u662f" : "\u5426") + n +
+                "\u5f53\u524d\u5c3a\u5bf8\u3000\uff1a" + cfg.Scale + "%" + n +
+                "\u6570\u636e\u76ee\u5f55\u3000\uff1a" + dataDir + n +
                 n +
-                "HOW TO PLAY" + n +
+                "\u73a9\u6cd5" + n +
                 "-------------------------------------------------------------" + n +
-                "  click her head   -> she is happiest there, affection +2" + n +
-                "  click her body   -> affection +1" + n +
-                "  click her tail   -> she objects (affection -1)" + n +
-                "  click 5 times fast -> petting combo, she cheers" + n +
-                "  drag her         -> carry her somewhere else" + n +
-                "  double-click     -> centre on this screen, and back again" + n +
-                "  mouse wheel      -> nudge affection up or down" + n +
-                "  Esc              -> quit" + n +
+                "  \u70b9\u5934\u9876\uff1a\u5979\u6700\u5f00\u5fc3\uff0c\u597d\u611f\u5ea6 +2" + n +
+                "  \u70b9\u8eab\u4f53\uff1a\u597d\u611f\u5ea6 +1" + n +
+                "  \u70b9\u5c3e\u5df4\uff1a\u5979\u4f1a\u4e0d\u9ad8\u5174\uff0c\u597d\u611f\u5ea6 -1" + n +
+                "  \u8fde\u70b9\u4e94\u4e0b\uff1a\u8fde\u7eed\u629a\u6478\uff0c\u5979\u4f1a\u6492\u6b22" + n +
+                "  \u62d6\u52a8\uff1a\u628a\u5979\u642c\u5230\u522b\u7684\u5730\u65b9" + n +
+                "  \u53cc\u51fb\uff1a\u5728\u8fd9\u4e00\u5c4f\u5c45\u4e2d\uff0c\u518d\u53cc\u51fb\u56de\u539f\u4f4d" + n +
+                "  \u6eda\u8f6e\uff1a\u624b\u52a8\u52a0\u51cf\u597d\u611f\u5ea6" + n +
+                "  Esc\uff1a\u9000\u51fa" + n +
                 n +
-                "ARTWORK CREDIT (required by the licence)" + n +
+                "\u9700\u8981\u6ce8\u660e\u51fa\u5904\u7684\u7d20\u6750\uff08\u8bb8\u53ef\u8bc1\u8981\u6c42\uff09" + n +
                 "-------------------------------------------------------------" + n +
-                "  Cat Fighter sprite sheet" + n +
-                "  by dogchicken" + n +
+                "  Cat Fighter \u50cf\u7d20\u7d20\u6750" + n +
+                "  \u4f5c\u8005 dogchicken" + n +
                 "  https://opengameart.org/content/cat-fighter-sprite-sheet" + n +
-                "  Licence: CC-BY 3.0 (https://creativecommons.org/licenses/by/3.0/)" + n +
+                "  \u8bb8\u53ef\u8bc1\uff1aCC-BY 3.0 (https://creativecommons.org/licenses/by/3.0/)" + n +
                 n +
-                "  The sprite sheet is redistributed unmodified. All 13 animations" + n +
-                "  are used; see CREDITS.txt for the clip-by-clip mapping." + n;
+                "  \u8be5\u7d20\u6750\u672a\u7ecf\u4fee\u6539\u3001\u539f\u6837\u5206\u53d1\u300212 \u4e2a\u52a8\u4f5c\u5168\u90e8\u4f7f\u7528\uff0c" + n +
+                "  \u9010\u5e27\u5bf9\u5e94\u5173\u7cfb\u89c1 CREDITS.txt\u3002" + n;
 
             try
             {
-                var f = new InfoForm("Desktop Cat - stats & credits", body);
+                var f = new InfoForm("\u684c\u9762\u5c0f\u732b \u00b7 \u72b6\u6001\u4e0e\u7f72\u540d", body);
                 f.Show();
             }
             catch (Exception ex)
@@ -1150,7 +1267,7 @@ namespace DesktopCat
         // How many clips actually loaded, for the stats panel.
         int ClipCount()
         {
-            GifClip[] all = { clipIdle, clipWalk, clipJump, clipPet, clipSleep, clipSad,
+            GifClip[] all = { clipIdle, clipWalk, clipJump, clipPet, clipSad,
                               clipPlay, clipDance, clipStretch, clipCheer, clipSurprise,
                               clipTalk, clipRemind };
             int c = 0;
@@ -1172,8 +1289,9 @@ namespace DesktopCat
                     cfg.Interactions = JInt(j, "interactions", 0);
                     quiet  = JInt(j, "quiet", 0)  != 0;
                     locked = JInt(j, "locked", 0) != 0;
+                    cfg.Scale = JInt(j, "scale", 100);
                     Note("config loaded x=" + cfg.X + " y=" + cfg.Y + " aff=" + cfg.Affinity +
-                         " quiet=" + quiet + " locked=" + locked);
+                         " quiet=" + quiet + " locked=" + locked + " scale=" + cfg.Scale);
                 }
                 else Note("no config yet");
             }
@@ -1195,6 +1313,7 @@ namespace DesktopCat
                 // whole config round-trips through the one tiny parser.
                 sb.Append("  \"quiet\": ").Append(quiet ? 1 : 0).Append(",\n");
                 sb.Append("  \"locked\": ").Append(locked ? 1 : 0).Append(",\n");
+                sb.Append("  \"scale\": ").Append(cfg.Scale).Append(",\n");
                 sb.Append("  \"topMost\": ").Append(cfg.TopMost ? "true" : "false").Append("\n");
                 sb.Append("}\n");
                 File.WriteAllText(cfgPath, sb.ToString());
@@ -1223,6 +1342,74 @@ namespace DesktopCat
             return dflt;
         }
 
+        // ------------------------------------------------------------- sizing
+        //
+        //  Resizes the pet to the user's preference. Steps that were measured on
+        //  this machine (150% display, 1707x1067 logical / 2560x1600 physical):
+        //
+        //      75%  -> 7x zoom,  cat 126x210 device px
+        //      100% -> 10x      cat 180x300
+        //      125% -> 13x      cat 234x390
+        //      150% -> 15x      cat 270x450
+        //
+        //  The four menu labels are menu-strings.txt lines 14..17; they are
+        //  spliced in as \uXXXX escapes because this file must stay pure ASCII.
+        //
+        //  The zoom is an integer multiple of the 18x30 GIF frames, so it is
+        //  quantised; these four steps are monotonic, which is all that matters.
+        void FitSpriteScale()
+        {
+            if (clipIdle == null || clipIdle.Frames == null || clipIdle.Frames.Length == 0) return;
+            int TARGET_W = S((int)Math.Round(126 * userScale));
+            int fw = clipIdle.Frames[0].Bmp.Width;
+            int byWidth = TARGET_W / fw;
+            int maxFitW = (W - S(20)) / fw;
+            // No height term: the cat is never tall enough for height to bind, and
+            // including it only produced a confusing off-by-one that forced 6x.
+            spriteScale = Math.Max(1, Math.Min(byWidth, maxFitW));
+        }
+
+        // applyNow == false is the construction-time path: W/H are set so that the
+        // later "Size = new Size(W, H)" picks them up, but the Form is not sized
+        // or positioned yet (and LoadSprites has not run, so FitSpriteScale
+        // no-ops against a null clipIdle).
+        void ApplyScale(double s, bool applyNow)
+        {
+            if (s < 0.5) s = 0.5;
+            if (s > 2.0) s = 2.0;
+            userScale = s;
+            cfg.Scale = (int)Math.Round(s * 100);
+
+            int oldW = W, oldH = H;
+            W = S((int)Math.Round(340 * userScale));
+            H = S((int)Math.Round(460 * userScale));
+            FitSpriteScale();
+
+            if (!applyNow) return;
+
+            // Keep her feet on the same line and her centre where it was. Growing
+            // from the top-left corner instead would walk her off the bottom edge
+            // on every upward step.
+            int cx = Left + oldW / 2;
+            int bottom = Top + oldH;
+            Size = new Size(W, H);
+            Left = cx - W / 2;
+            Top = bottom - H;
+
+            var wa = Screen.FromPoint(new Point(Left + W / 2, Top + H / 2)).WorkingArea;
+            if (Left < wa.Left) Left = wa.Left;
+            // Same room as the drag clamp: the artwork sits far below the top of
+            // the window, so the window has to be allowed to hang off the top
+            // edge for her head to stay put when the size grows.
+            int topRoom = ArtworkTopRoom();
+            if (Top < wa.Top - topRoom) Top = wa.Top - topRoom;
+            if (Left + W > wa.Right) Left = wa.Right - W;
+            if (Top + H > wa.Bottom) Top = wa.Bottom - H;
+
+            SaveConfig();
+            Invalidate();
+        }
+
         // -------------------------------------------------------------- FSM
         void SetState(PetState s, int minMs) { SetState(s, minMs, false); }
 
@@ -1241,10 +1428,7 @@ namespace DesktopCat
                                s == PetState.Talking || s == PetState.Stretch ||
                                s == PetState.Surprise || s == PetState.Cheer);
 
-            // Sleep shows a one-shot clip too (cat_die), so it needs the same
-            // spacing. Without this the cat naps, gets up, and lies straight
-            // back down 1.4 s later -- measured, and clearly wrong.
-            bool oneShot = isReaction || s == PetState.Sleep;
+            bool oneShot = isReaction;
 
             // One autonomous one-shot at a time. The idle timer used to re-fire
             // while the previous tumble was barely over, so these clips ran
@@ -1256,20 +1440,17 @@ namespace DesktopCat
             var next = table[s];
             if (next.Priority < cur.Priority && !cur.Interruptible) return;
             // The remaining two guards must ALSO let a user click through. They used
-            // not to, so asking for a lower-priority state was silently dropped:
-            // the tray menu's "Nap" is Sleep (priority 50), so clicking it while she
-            // was Happy (60) did nothing at all for the next two seconds, and the
-            // menu looked broken. Confirmed by probing the compiled form directly.
+            // not to, so asking for a lower-priority state was silently dropped and
+            // the menu looked broken -- confirmed by probing the compiled form.
             if (next.Priority < cur.Priority && !userInitiated && (now - stateEnteredMs) < cur.MinMs) return;
             if (state == s && s != PetState.Idle && !userInitiated) return;
 
             // Duration for THIS visit. It is deliberately not written back into the
             // table: table[] is shared static state for the whole session, so
-            // "table[s].MinMs = minMs" used to make one call permanent. A night nap
-            // passes 9000 and every nap afterwards lasted 9 seconds even at noon,
-            // the boot greeting made Happy 2200 forever, and each tray action
-            // rewrote its state's duration again -- so the cat's behaviour drifted
-            // the longer it ran.
+            // "table[s].MinMs = minMs" used to make one call permanent. The boot
+            // greeting made Happy 2200 forever, and each tray action rewrote its
+            // state's duration again -- so the cat's behaviour drifted the longer
+            // it ran.
             long wantMs = (minMs > table[s].MinMs) ? minMs : table[s].MinMs;
 
             state = s;
@@ -1295,8 +1476,6 @@ namespace DesktopCat
                 long hold = clipMs + 120;
                 if (wantMs + 120 > hold) hold = wantMs + 120;
 
-                // Sleep reaches its clip through the DesiredClip switch, so it
-                // must not set the override.
                 clipOverrideUntilMs = isReaction ? (now + hold) : 0;
 
                 // A new reaction must replay its clip from frame 0 even if the
@@ -1325,7 +1504,7 @@ namespace DesktopCat
         {
             switch (s)
             {
-                case PetState.Sleep: return clipSleep;
+
                 case PetState.Sad: return clipSad;
                 case PetState.Stretch: return clipStretch;
                 case PetState.Surprise: return clipSurprise;
@@ -1359,7 +1538,7 @@ namespace DesktopCat
             // exists, but only to time the reaction gate in SetState.)
             switch (state)
             {
-                case PetState.Sleep: return clipSleep;
+
                 case PetState.Stretch: return clipStretch;
                 case PetState.Play: return clipPlay;
                 case PetState.Game: return clipPlay;
@@ -1451,6 +1630,96 @@ namespace DesktopCat
             if (now >= previewNextMs) { previewIdx++; previewNextMs = 0; }
         }
 
+        // ----------------------------------------------------- repaint pacing
+        //
+        //  Application.Idle fires as fast as the message pump empties. For an
+        //  otherwise idle pet that is thousands of times per second, and every
+        //  single one of those used to end in a full-window Invalidate().
+        //
+        //  Measured cost of that: 16.27 s of CPU time in a 20 s wall-clock
+        //  idle window == 81 % of one whole core, 4.06 % of all 20 cores.
+        //  It also starved the WH_MOUSE_LL hook, which runs on this very
+        //  thread -- that is why a reviewer reported the pet "severely
+        //  interferes with typing and with using the computer": it was not the
+        //  pet stealing focus, it was this thread never being idle enough to
+        //  return the hook callback promptly.
+        //
+        //  The state machine still runs on every idle tick (it has to: those
+        //  are the checks that decide whether anything happens at all). Only
+        //  the paint is gated.
+        //
+        //  v1.1's first attempt at that gate used a fixed 66 ms clock, about
+        //  15 fps, on the theory that it was more than the clips need (their
+        //  frame delays are 80-120 ms). It was cheap, and WRONG. The user
+        //  caught it: "the animation is choppier now". The clip advances one
+        //  frame every 80 ms from its own stopwatch while the gate opens every
+        //  66 ms, and 66 does not divide 80, so the two beat against each
+        //  other. Measured on the idle clip (4 frames x 80 ms), 6 s window:
+        //
+        //      paints                     91      (15.0 per second)
+        //      repaints of a frame that
+        //        was already on screen    16
+        //      time each picture stayed
+        //        on screen                min 62  median 63  max 141 ms
+        //      spread                     sd 27.5 ms
+        //      pictures that missed the
+        //        80 ms the clip asked for 60 of 74
+        //
+        //  So: paint when the FRAME changes, not when a timer says so. The
+        //  player already works out which frame is due from a real clock, and
+        //  reading Current is what advances it, so the paint lands exactly on
+        //  the frame boundary. One paint per frame is both smoother than the
+        //  gate and cheaper than it: 12.5 fps instead of 15 fps on the idle
+        //  clip, and no wasted repaints at all.
+        //
+        //  Anything that is not frame-driven -- bubble text, the hint, the
+        //  affection hearts, dragging -- is picked up by a slow safety net.
+        const int REPAINT_FALLBACK_MS = 200;   // 5 fps floor for everything else
+        long lastPaintMs = 0;
+        GifClip lastPaintClip = null;
+        int lastPaintFrame = -2;
+
+        void Repaint(long now)
+        {
+            GifClip clip = player.Clip;
+            int frame = player.Current;                 // also advances the clip
+            bool frameMoved = (clip != lastPaintClip) || (frame != lastPaintFrame);
+            if (!frameMoved && (now - lastPaintMs) < REPAINT_FALLBACK_MS) return;
+            lastPaintClip = clip;
+            lastPaintFrame = frame;
+            lastPaintMs = now;
+            Invalidate();
+        }
+
+        // ------------------------------------------------- cached GDI+ objects
+        //
+        //  Every OnPaint used to build a fresh Font (and, for the bubble, a
+        //  fresh GraphicsPath with four arcs and two Pens). On an unthrottled
+        //  idle loop that is thousands of unmanaged GDI+ allocations per second.
+        //  Nothing leaked -- they were all inside using blocks -- but the churn
+        //  was a real part of the 81 %-of-a-core measurement. These live as long
+        //  as the form does.
+        Font fontBubble, fontHint, fontTier;
+
+        Font Use(ref Font slot, float size)
+        {
+            if (slot == null) slot = new Font("Microsoft YaHei UI", size);
+            return slot;
+        }
+
+        // ----------------------------------------------------- bubble anchoring
+        //
+        //  Top edge of the sprite in client coordinates, refreshed on every
+        //  paint. The bubble was pinned to y = S(8) -- the very top of the
+        //  window -- while the cat stands near the bottom, so it read as "the
+        //  speech bubble is a mile away from the model", and it landed in
+        //  exactly the same strip as the onboarding hint, which is why those two
+        //  overlapped for the first 18 seconds of a session.
+        //
+        //  -1 means "no sprite measured yet, fall back to the old position".
+        float catTopY = -1f;
+        float hintTopY = -1f;
+
         void OnIdle(object sender, EventArgs e)
         {
             long now = clock.ElapsedMilliseconds;
@@ -1461,7 +1730,7 @@ namespace DesktopCat
             {
                 StepPreview(now);
                 if (bubbleText != null && now > bubbleUntilMs) bubbleText = null;
-                Invalidate();
+                Repaint(now);
                 return;
             }
 
@@ -1475,8 +1744,7 @@ namespace DesktopCat
             if (now > nextBlinkMs)
             {
                 if (blinkClosed) { blinkClosed = false; nextBlinkMs = now + rnd.Next(2200, 5200); }
-                else if (state != PetState.Sleep) { blinkClosed = true; nextBlinkMs = now + 110; }
-                else nextBlinkMs = now + 1000;
+                else { blinkClosed = true; nextBlinkMs = now + 110; }
             }
 
             // Break reminder: the one thing she says unprompted, and the only
@@ -1510,15 +1778,10 @@ namespace DesktopCat
                 // SetState enforces the reaction gate itself, so these are safe
                 // to call unconditionally.
                 //
-                // Weights are a percentage of idle rolls. Measured on a live run,
-                // the first cut handed Sleep 28% -- the single most likely outcome
-                // -- and the cat napped 5 times in 90 seconds, which reads as a
-                // switched-off cat rather than a resting one. Sleep is now 12% and
-                // the lively states dominate. Sad stays at 8% on purpose: a
-                // companion that looks miserable a fifth of the time is not
-                // pleasant to have on screen.
+                // Weights are a percentage of idle rolls. Sad stays at 8% on
+                // purpose: a companion that looks miserable a fifth of the time is
+                // not pleasant to have on screen.
                 int r = rnd.Next(100);
-                bool wantedReaction = (r < 88);
 
                 if (r < 22)
                 {
@@ -1559,16 +1822,17 @@ namespace DesktopCat
                 }
                 else
                 {
-                    // At night she naps far longer than she does during the day.
-                    long napMs = IsNightHour() ? 9000 : 3500;
-                    SetState(PetState.Sleep, (int)napMs);
-                    Bubble(Pick(SLEEPY), 2200);
+                    // Cheer. This bucket used to be her nap; with the sleep clip
+                    // gone it is the one action the idle roll had no other way to
+                    // reach, and both the state and the clip already existed.
+                    SetState(PetState.Cheer, 2400);
+                    if (state == PetState.Cheer) Bubble(Pick(PETTED_MANY), 1800);
                 }
 
                 // The roll wanted a reaction but the gate is still shut (the
                 // previous one is not done settling). Retry shortly instead of
                 // sitting out another full 3-7 s idle interval.
-                if (wantedReaction && state == PetState.Idle) nextMicroMs = now + 1200;
+                if (state == PetState.Idle) nextMicroMs = now + 1200;
             }
 
             if (bubbleText != null && now > bubbleUntilMs) bubbleText = null;
@@ -1577,7 +1841,7 @@ namespace DesktopCat
 
             if (now - lastSaveMs > 10000) { lastSaveMs = now; SaveConfig(); }
 
-            Invalidate();
+            Repaint(now);
         }
 
         // -------------------------------------------------------- interaction
@@ -1649,7 +1913,7 @@ namespace DesktopCat
                 int ny = dragOriginForm.Y + dy;
                 var scr = Screen.FromPoint(now).WorkingArea;
                 nx = Math.Max(scr.Left - W / 3, Math.Min(nx, scr.Right - W * 2 / 3));
-                ny = Math.Max(scr.Top, Math.Min(ny, scr.Bottom - 60));
+                ny = Math.Max(scr.Top - ArtworkTopRoom(), Math.Min(ny, scr.Bottom - 60));
                 Location = new Point(nx, ny);
             }
         }
@@ -1698,6 +1962,14 @@ namespace DesktopCat
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
+
+            // Nothing used to fill the client area, so every pixel the cat does
+            // not cover kept whatever the double buffer happened to hold instead
+            // of the transparency key. Windows could not key those pixels out, so
+            // the empty band above her head was a real part of the window: it
+            // swallowed clicks that were nowhere near her. Fill it explicitly.
+            g.Clear(MAGIC);
+
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
@@ -1747,13 +2019,12 @@ namespace DesktopCat
                     //
                     //     idle  18x30      pet (cat_a1) 21x29
                     //     walk  18x30      sad (cat_a6) 24x29
-                    //     jump  18x31      sleep (cat_die) 30x30
+                    //     jump  18x31
                     //
                     // Drawing all of those into idle's fixed 126x210 box stretched
-                    // each one by a different amount. cat_die came out at 126/30 =
-                    // 4.2x horizontally against 7x vertically: the fall rendered
-                    // 40% too narrow, and the cat SNAPPED to a different size the
-                    // moment Sleep began and snapped back when it ended.
+                    // each one by a different amount -- a 30 px wide frame came out
+                    // 40% too narrow against the 18 px wide ones -- so the cat
+                    // SNAPPED to a different size whenever the clip changed.
                     //
                     // Scale each frame by spriteScale instead, and anchor it to
                     // the same floor line (H-34) and the same horizontal centre,
@@ -1764,6 +2035,7 @@ namespace DesktopCat
                     float dh = bh * spriteScale;
                     float dx = (W - dw) / 2f;
                     float dy = H - S(34) - dh + (float)spriteBob;
+                    catTopY = dy;                 // bubble anchors to this
 
                     if (spriteAngle != 0)
                     {
@@ -1783,6 +2055,7 @@ namespace DesktopCat
                     }
 
                     var dest = new Rectangle((int)Math.Round(dx), (int)Math.Round(dy), (int)dw, (int)dh);
+                    hitBmp = bmp; hitDest = dest; hitFlip = spriteFlip;
                     var srcR = new Rectangle(0, 0, bmp.Width, bmp.Height);
                     g.DrawImage(bmp, dest, srcR, GraphicsUnit.Pixel);
 
@@ -1790,11 +2063,14 @@ namespace DesktopCat
                 }
             }
 
-            if (bubbleText != null) DrawBubble(g, bubbleText);
-            // Onboarding hint for the first stretch of the session, plus whenever
-            // she is actually being carried. A permanent "drag" label was just
-            // clutter once the user had worked it out.
+            // Hint first, then the bubble. DrawHint records where it landed, so
+            // the bubble can stack itself above the hint instead of colliding
+            // with it; drawing the hint first also means the bubble wins the
+            // z-order when the two ever do meet.
+            hintTopY = -1f;
             if (dragging || clock.ElapsedMilliseconds < 18000) DrawHint(g);
+
+            if (bubbleText != null) DrawBubble(g, bubbleText);
 
             // persistent affection bar, very subtle
             DrawAffection(g);
@@ -1819,8 +2095,8 @@ namespace DesktopCat
 
             // Tier name above the bar, with a shadow so it survives on any wallpaper.
             string name = TierName();
-            using (var f = new Font("Microsoft YaHei UI", 8f))
             {
+                var f = Use(ref fontTier, 8f);
                 var sz = g.MeasureString(name, f);
                 float tx = x + (barW - sz.Width) / 2f;
                 float ty = y - sz.Height - 1;
@@ -1834,60 +2110,74 @@ namespace DesktopCat
         void DrawHint(Graphics g)
         {
             string s = HINT[0];
-            using (var f = new Font("Microsoft YaHei UI", 8f))
-            {
-                var sz = g.MeasureString(s, f);
-                float x = (W - sz.Width) / 2f;
-                using (var sh = new SolidBrush(Color.FromArgb(190, 0, 0, 0)))
-                    g.DrawString(s, f, sh, x + 1, S(7));
-                using (var b = new SolidBrush(Color.FromArgb(215, 255, 255, 255)))
-                    g.DrawString(s, f, b, x, S(6));
-            }
+            var f = Use(ref fontHint, 8f);
+            var sz = g.MeasureString(s, f);
+            float x = (W - sz.Width) / 2f;
+
+            // Just above her head. Falls back to the old top strip only if no
+            // sprite has been measured yet.
+            float hy = (catTopY > 0f ? catTopY - sz.Height - S(4) : (float)S(6));
+            if (hy < S(2)) hy = S(2);
+            hintTopY = hy;
+
+            using (var sh = new SolidBrush(Color.FromArgb(190, 0, 0, 0)))
+                g.DrawString(s, f, sh, x + 1, hy + 1);
+            using (var b = new SolidBrush(Color.FromArgb(215, 255, 255, 255)))
+                g.DrawString(s, f, b, x, hy);
         }
 
         void DrawBubble(Graphics g, string text)
         {
-            using (var f = new Font("Microsoft YaHei UI", 10.5f))
+            var f = Use(ref fontBubble, 10.5f);
+            SizeF sz = g.MeasureString(text, f);
+            float padX = S(12), padY = S(8);
+            float bw = sz.Width + padX * 2;
+            float bh = sz.Height + padY * 2;
+            float bx = (W - bw) / 2f;
+
+            // Stack above the hint when it is visible, otherwise sit right above
+            // her head. The clearance has to be LARGER than the tail: the tail
+            // reaches S(11) below the bubble body, so at the original S(8) it
+            // landed right on the hint line -- an offscreen render caught that at
+            // 150%. S(16) leaves the tail tip S(5) clear of the hint. The window
+            // top is only the last resort, for when no sprite has been measured.
+            float baseY = (hintTopY > 0f ? hintTopY : (catTopY > 0f ? catTopY : (float)H));
+            float by = baseY - bh - S(16);
+            if (bx < S(2)) bx = S(2);
+            if (by < S(2)) by = S(2);
+
+            var path = new GraphicsPath();
+            float r = S(12);
+            path.AddArc(bx, by, r * 2, r * 2, 180, 90);
+            path.AddArc(bx + bw - r * 2, by, r * 2, r * 2, 270, 90);
+            path.AddArc(bx + bw - r * 2, by + bh - r * 2, r * 2, r * 2, 0, 90);
+            path.AddArc(bx, by + bh - r * 2, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+
+            using (var b = new SolidBrush(Color.FromArgb(238, 255, 255, 255)))
+                g.FillPath(b, path);
+            using (var p = new Pen(Color.FromArgb(230, HAIR), 2f))
+                g.DrawPath(p, path);
+            using (var b = new SolidBrush(Color.FromArgb(255, 40, 52, 62)))
+                g.DrawString(text, f, b, bx + padX, by + padY);
+
+            // little tail pointing down to her
+            var tail = new PointF[] { new PointF(bx + bw / 2 - S(7), by + bh - 1), new PointF(bx + bw / 2 + S(7), by + bh - 1), new PointF(bx + bw / 2, by + bh + S(11)) };
+            using (var b = new SolidBrush(Color.FromArgb(238, 255, 255, 255)))
+                g.FillPolygon(b, tail);
+            using (var p = new Pen(Color.FromArgb(230, HAIR), 2f))
             {
-                SizeF sz = g.MeasureString(text, f);
-                float padX = S(12), padY = S(8);
-                float bw = sz.Width + padX * 2;
-                float bh = sz.Height + padY * 2;
-                float bx = (W - bw) / 2f;
-                float by = S(8);
-                if (bx < S(2)) bx = S(2);
-
-                var path = new GraphicsPath();
-                float r = S(12);
-                path.AddArc(bx, by, r * 2, r * 2, 180, 90);
-                path.AddArc(bx + bw - r * 2, by, r * 2, r * 2, 270, 90);
-                path.AddArc(bx + bw - r * 2, by + bh - r * 2, r * 2, r * 2, 0, 90);
-                path.AddArc(bx, by + bh - r * 2, r * 2, r * 2, 90, 90);
-                path.CloseFigure();
-
-                using (var b = new SolidBrush(Color.FromArgb(238, 255, 255, 255)))
-                    g.FillPath(b, path);
-                using (var p = new Pen(Color.FromArgb(230, HAIR), 2f))
-                    g.DrawPath(p, path);
-                using (var b = new SolidBrush(Color.FromArgb(255, 40, 52, 62)))
-                    g.DrawString(text, f, b, bx + padX, by + padY);
-
-                // little tail pointing down to her
-                var tail = new PointF[] { new PointF(bx + bw / 2 - S(7), by + bh - 1), new PointF(bx + bw / 2 + S(7), by + bh - 1), new PointF(bx + bw / 2, by + bh + S(11)) };
-                using (var b = new SolidBrush(Color.FromArgb(238, 255, 255, 255)))
-                    g.FillPolygon(b, tail);
-                using (var p = new Pen(Color.FromArgb(230, HAIR), 2f))
-                {
-                    g.DrawLine(p, tail[0].X, tail[0].Y, tail[2].X, tail[2].Y);
-                    g.DrawLine(p, tail[1].X, tail[1].Y, tail[2].X, tail[2].Y);
-                }
+                g.DrawLine(p, tail[0].X, tail[0].Y, tail[2].X, tail[2].Y);
+                g.DrawLine(p, tail[1].X, tail[1].Y, tail[2].X, tail[2].Y);
             }
         }
 
         // ===================================================================
         //  SPRITE RENDERER  --  "Cat Fighter" by dogchicken (OpenGameArt)
         //
-        //  CC-BY 4.0. See CREDITS.txt next to this script.
+        //  CC-BY 3.0. See CREDITS.txt next to this script. This line said 4.0 for
+        //  a long time -- D-27 corrected the version everywhere else after
+        //  re-checking the source page, but this comment was missed.
         //
         //  This replaced ~240 lines of hand-drawn GDI+ geometry. The hand-drawn
         //  version was rejected on sight and had a real defect: the ears were
@@ -1918,10 +2208,10 @@ namespace DesktopCat
             public long TotalMs;
 
             // Looping clips (idle breathing, walk cycle) repeat forever.
-            // One-shot clips (fall over, sleep) must play exactly ONCE and then
-            // hold their last frame -- otherwise a 720 ms fall animation repeats
-            // for as long as the state lasts and the cat visibly keeps
-            // collapsing, getting up and collapsing again.
+            // One-shot clips (the reactions) must play exactly ONCE and then hold
+            // their last frame -- otherwise a 720 ms reaction repeats for as long
+            // as the state lasts and the cat visibly keeps going through the same
+            // tumble.
             public bool Loop = true;
 
             public GifClip(string name, CharFrame[] frames)

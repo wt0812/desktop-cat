@@ -30,7 +30,7 @@ New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
 $form = New-Object DesktopCat.PetForm($root, $dataDir, (Join-Path $dataDir "config.json"))
 
 $ff = [System.Reflection.BindingFlags]::NonPublic -bor [System.Reflection.BindingFlags]::Instance
-$clips = @('clipIdle','clipWalk','clipJump','clipPet','clipSleep','clipSad','clipPlay',
+$clips = @('clipIdle','clipWalk','clipJump','clipPet','clipSad','clipPlay',
            'clipDance','clipStretch','clipCheer','clipSurprise','clipTalk','clipRemind')
 
 foreach ($name in $clips) {

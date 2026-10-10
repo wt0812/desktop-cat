@@ -2,7 +2,7 @@
 # OnPaint() actually advance the animation clip?
 #
 # This exists because the offscreen harness produced a silhouette that matched
-# clipPet while the state had been set to Sleep. Before trusting ANY offscreen
+# clipPet while the state had been set to Stretch. Before trusting ANY offscreen
 # measurement, the harness itself has to be shown to be honest.
 
 $ErrorActionPreference = 'Stop'
@@ -35,14 +35,14 @@ $fRG       = $form.GetType().GetField("reactionGateMs", $ff)
 Write-Output ("state right after construction : " + $fState.GetValue($form))
 Write-Output ("reactionGateMs                 : " + $fRG.GetValue($form))
 
-$mSetState.Invoke($form, [object[]]@([DesktopCat.PetState]::Sleep, [int]8000, [bool]$true)) | Out-Null
-Write-Output ("state right after SetState(Sleep,8000,true) : " + $fState.GetValue($form))
+$mSetState.Invoke($form, [object[]]@([DesktopCat.PetState]::Stretch, [int]8000, [bool]$true)) | Out-Null
+Write-Output ("state right after SetState(Stretch,8000,true) : " + $fState.GetValue($form))
 Write-Output ""
 
 $player = $fPlayer.GetValue($form)
 $fClip = $player.GetType().GetField("Clip")
 $fFrame = $player.GetType().GetField("Frame")
-foreach ($nm in @('clipSleep','clipPet','clipIdle')) {
+foreach ($nm in @('clipStretch','clipPet','clipIdle')) {
   Write-Output ("  " + $nm + " bmp0 = " + $form.GetType().GetField($nm, $ff).GetValue($form).GetType().GetField("Frames").GetValue($form.GetType().GetField($nm, $ff).GetValue($form))[0].GetType().GetField("Bmp").GetValue($form.GetType().GetField($nm, $ff).GetValue($form).GetType().GetField("Frames").GetValue($form.GetType().GetField($nm, $ff).GetValue($form))[0]).Width)
 }
 Write-Output ""

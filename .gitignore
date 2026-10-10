@@ -19,3 +19,5 @@ state-caps/
 #     disables Windows' app-reputation check -- neither belongs in a public repo.
 CLEANUP.md
 registry/
+DesktopCat-1.1/
+DesktopCat-1.1.zip

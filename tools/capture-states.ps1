@@ -48,7 +48,7 @@ if ($null -eq $mOnPaint)  { throw "OnPaint not found" }
 Write-Output "reflection hooks OK (SetState, OnPaint)"
 
 $W = 340; $H = 460
-$states = @('Idle','Happy','Stretch','Play','Dancing','Cheer','Sad','Surprise','Talking','Reminder','Sleep','Game')
+$states = @('Idle','Happy','Stretch','Play','Dancing','Cheer','Sad','Surprise','Talking','Reminder','Game')
 
 # Backdrop the sprite is composited onto.
 $BACK = [System.Drawing.Color]::FromArgb(255, 90, 96, 106)

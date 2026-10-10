@@ -8,7 +8,7 @@
 # Usage:  dump-clip-strip.ps1  <clipFieldName>  <outPngName>
 
 param(
-  [string]$ClipField = "clipSleep",
+  [string]$ClipField = "clipCheer",
   [string]$OutName   = "clip-strip.png",
   [int]$Zoom         = 4
 )
