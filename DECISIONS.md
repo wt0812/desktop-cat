@@ -485,3 +485,20 @@
 | **三处 exe 已对齐** | `MikuDesktop\DesktopCat.exe`、`Documents\DesktopCat-1.1\DesktopCat.exe`、桌面 `桌面小猫-发布素材\02-安装包\DesktopCat-1.1\DesktopCat.exe` —— **同一个哈希** |
 | **刻意没动的** | v1.0 的 exe / zip（`4D415C45…B40E` / `C8F84639…1324`）；推广用的桌面截图与 B 站视频（它们是把猫**离屏合成**出来的，不经过这个窗口，所以不受这次修复影响） |
 | **位置** | `pet.ps1`：`OnPaint`（`g.Clear(MAGIC)`）、新增 `WndProc`、`OnGlobalClick`、`OnMouseMove`、启动夹取 |
+
+## D-36 —— 右键菜单「大小」的勾永远停在"小"：菜单只在启动时建过一次
+
+| | |
+| --- | --- |
+| **现象（用户报告）** | 明明换了大小，菜单里勾着的**一直是「小」那一栏** |
+| **根因** | `BuildMenu()` 只在**启动时**被调用两次（窗体与托盘各一次），**菜单打开时根本不重建**；而勾是建菜单那一刻算的：`mi.Checked = Math.Abs(cfg.Scale - p) < 13;` → **开机时的那一档就冻住了**，之后再没更新过 |
+| **注释与代码不一致（如实记下）** | 源码里那句「勾在每次打开菜单时重新推导，因为菜单每次都会重建」是**错的** —— 这次误判的根源就是这个假注释 |
+| **修法** | 新增 `scaleItems` 字段 + `ScalePcts{75,100,125,150}` + `SyncScaleMenu()`：按**当前 `cfg.Scale`** 只勾最近的一档；在**子菜单每次打开**（`miSize.DropDownOpening`）与**每次选完**（`mi.Click`）都重算，建菜单时先调一次 |
+| **顺带修的同类错误** | `ApplyScale` 里 `if (Top < wa.Top) Top = wa.Top;` 与 D-35 的「够不到顶部」是**同一个夹取错误** → 改为 `wa.Top - ArtworkTopRoom()`；现在换大小时她不会再被按回下面 |
+| **证据（反射直测）** | 构造后勾「标准」；`ApplyScale(1.5)` **但不刷勾**时勾仍停在「标准」—— **完整复现旧 bug**；调 `SyncScaleMenu()` 后变「特大」；接着 75 / 125 / 100 依次为「小 / 大 / 标准」，四档全对 |
+| **大小本身一直是对的** | 各档 `spriteScale` = 5 / 7 / 8 / 10，她宽 **90 / 126 / 144 / 180 px** —— 错的只是那个勾，不是尺寸 |
+| **活菜单核对** | `tools\verify-menu.ps1`：**PASS**，17 个顶级条目，四档齐全，`ClipCount() = 12`，无打盹条目 |
+| **重编译与冒烟** | C# **0 errors**；`DesktopCat.exe` **54,272 字节**、sha256 **DD7E3E145CADA9721D90244DCB005BF762E65EAD8001F3503568E7B1C8CD6F6C**；工作区外 + 独立 `PET_DATA` 冒烟：`clips=12`、钩子在、无异常 |
+| **⚠ 取代 D-35 的哈希** | D-35 记的 exe **190BED65…** 与 zip **0489FEDD…** **已作废**；新 zip **93FAB87FA6E6428913A6415BC58B1F1349046E270A7A3A98C2EF86368F53178D**（**92,385 字节 / 19 条目**，zip 内 exe 与磁盘 exe 同哈希） |
+| **环境（反复出现，记下来省下次再查）** | 桌面上的大片白块是 **`LenovoAppStore` 的窗口**（2559x1599 铺满主屏，标题 `pcm_h5_msg`）：Run 键、启动文件夹、计划任务里**都没有它**，它是被 **`LenovoPcManagerService`** 拉起来的；本会话权限低于它（UIPI），`ShowWindow` 隐藏与 `Stop-Process` **都失败**，只能用管理员处理 |
+| **位置** | `pet.ps1`：`BuildMenu`（size 段）、新增 `SyncScaleMenu`、`ApplyScale` 尾部夹取 |
