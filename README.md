@@ -196,6 +196,8 @@ SHA256 可以校验；完全不想跑 exe 的话，也可以直接用 PowerShell
 | --- | --- |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 架构、目录结构、构建与打包流程、怎么调她的行为 |
 | [RELEASE-NOTES-v1.0.md](RELEASE-NOTES-v1.0.md) | 这个版本改了什么、两个 sha256 校验值 |
+| [CHANGELOG.md](CHANGELOG.md) | 逐条功能迭代（Keep a Changelog 格式） |
+| [RELEASE-NOTES-v1.1.md](RELEASE-NOTES-v1.1.md) | v1.1 改了什么、两个 sha256 校验值、实测系统占用 |
 | [DECISIONS.md](DECISIONS.md) | **31 条技术决策记录**：为什么用 WinForms 不用 Electron、为什么透明窗口要设 `TransparencyKey`、为什么鼠标钩子不挂右键……踩过的坑都在里面 |
 | [CREDITS.txt](CREDITS.txt) | 美术素材的完整署名（CC-BY 3.0 要求） |
 | [tools/](tools) | 开发用脚本：打包 exe、离屏截状态图、部署、探测等 |
