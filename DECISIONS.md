@@ -502,3 +502,16 @@
 | **⚠ 取代 D-35 的哈希** | D-35 记的 exe **190BED65…** 与 zip **0489FEDD…** **已作废**；新 zip **93FAB87FA6E6428913A6415BC58B1F1349046E270A7A3A98C2EF86368F53178D**（**92,385 字节 / 19 条目**，zip 内 exe 与磁盘 exe 同哈希） |
 | **环境（反复出现，记下来省下次再查）** | 桌面上的大片白块是 **`LenovoAppStore` 的窗口**（2559x1599 铺满主屏，标题 `pcm_h5_msg`）：Run 键、启动文件夹、计划任务里**都没有它**，它是被 **`LenovoPcManagerService`** 拉起来的；本会话权限低于它（UIPI），`ShowWindow` 隐藏与 `Stop-Process` **都失败**，只能用管理员处理 |
 | **位置** | `pet.ps1`：`BuildMenu`（size 段）、新增 `SyncScaleMenu`、`ApplyScale` 尾部夹取 |
+## D-37 把 v1.1 发到 GitHub：Release、附件、仓库规范件
+
+| | |
+|---|---|
+| **日期** | 2026-10-10 |
+| **背景** | 仓库早就有 v1.0 的 Release，但 v1.1 只推了 tag。README 首屏那个「下载 DesktopCat-1.1.zip」按钮指向 `releases/latest`，而 latest 当时仍是 v1.0 —— 也就是说按钮写着 1.1，点下去下载的其实是 1.0 的包。 |
+| **决定** | 用 `gh`（本机已登录 wt0812，凭据在 keyring 里，**全程没有把 token 读进上下文**）建 v1.1 的 Release，并把 `DesktopCat-1.1.zip` 作为附件上传；同时补齐仓库缺的规范件。 |
+| **Release 正文的坑** | 正文走 `gh api --input <json>`，JSON 由 `RELEASE-NOTES-v1.1.md` 生成 —— 不走命令行传参，中文就不会被 Windows 代码页搞坏。tag `v1.1` 已经存在，所以 API 不会另造一个指向 main 头的 tag。 |
+| **验证** | 未登录的公网 API 查 `releases/latest` → `v1.1`；再把附件从 `releases/download/v1.1/DesktopCat-1.1.zip` **下载回来算哈希** → `93FAB87F…` 与本地发布包逐字节一致；三个 Release URL（latest / v1.1 / v1.0）全 200。 |
+| **顺带补齐** | `.gitattributes`（文本锁定 LF；图标、GIF、exe、zip 标为二进制）、`.github/ISSUE_TEMPLATE/bug_report.yml` 与 `feature_request.yml` —— 报障表单强制要「版本 / Windows 版本 / 大小档位」并请对方贴 `pet.log` 尾巴，没有这几项报障基本没法定位。v1.0 的 Release 本来就有附件（`DesktopCat-1.0.zip`，93,382 B），未动。 |
+| **只差网页上一下** | GitHub 的社交预览图（Settings → General → Social preview）只能网页上传，`gh` 没有这个接口。 |
+| **哈希留档** | Release 附件与本地发布包一致：zip **92,385 B / `93FAB87FA6E6428913A6415BC58B1F1349046E270A7A3A98C2EF86368F53178D`**；包内 exe **54,272 B / `DD7E3E145CADA9721D90244DCB005BF762E65EAD8001F3503568E7B1C8CD6F6C`**。 |
+| **提交** | `00f7238`（规范件）与本次 D-37 记录，两个远程同步。 |
