@@ -588,3 +588,9 @@
 - 整目录搬移 256 个文件 / 4.99 MB，搬完逐项核对：文件数一致、`DesktopCat.exe` 的 sha256 不变（`DD7E3E145CADA9721D90244DCB005BF762E65EAD8001F3503568E7B1C8CD6F6C`）、`git status` 干净、HEAD 仍是 `34990b1`、两个远端（origin=GitHub / gitee）不受影响。
 - `pet.ps1` 用 `$MyInvocation` + `Split-Path` 定位自身目录，不依赖绝对路径，所以程序在任何位置都能跑；仓库里唯一的写死路径在 `tools\gif-survey.py`（一次性调查脚本），已同步改成新路径。
 - 发布素材（桌面 `桌面小猫-发布素材\`）和文案（`Documents\DesktopCat-*.md`）**不跟着搬**：这些路径已经写进索引、步骤文档和上下文快照，搬动收益低、改动面大。
+
+## D-42 发布素材移入项目并加入 .gitignore（2026-10-14）
+
+- `C:\Users\21653\Desktop\桌面小猫-发布素材` 整体搬进项目：`F:\DeepSeek Harness\projects\desktop-cat\发布素材`。整目录搬移 83 个文件 / 72.33 MB，搬后核对：文件数一致、`02-安装包\DesktopCat-1.1.zip` 的 sha256 仍是 `93FAB87FA6E6428913A6415BC58B1F1349046E270A7A3A98C2EF86368F53178D`、`DesktopCat-1.1\DesktopCat.exe` 仍是 `DD7E3E145CADA9721D90244DCB005BF762E65EAD8001F3503568E7B1C8CD6F6C`。
+- `.gitignore` 增加 `/发布素材/`：这 72 MB 素材只在本地，不进仓库、不推远端。
+- `Documents\DesktopCat-*.md` 里 5 份文案、`DesktopCat-promo\` 里 3 个脚本引用的旧桌面路径已同步改成新路径；`.log` 文件一律不动。
