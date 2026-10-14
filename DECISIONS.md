@@ -581,3 +581,10 @@
 
 产出：96 帧 / 760x428 / 80ms，7.7 秒，237 KB。分发到 `04-少数派\2-article-demo.gif`、`05-Appinn\1-demo.gif`、
 仓库 `docs/demo.gif`。另外把 `DesktopCat-少数派投稿.md` 拆成可直接粘贴的三份（正文 / 信息卡 / 操作步骤）。
+
+## D-41 代码仓库工作副本迁到 projects 目录（2026-10-12）
+
+- 仓库工作副本从 `C:\Users\21653\Documents\deepseek-harness\default-workspace\MikuDesktop` 迁到 `F:\DeepSeek Harness\projects\desktop-cat`，目的是和本机其它项目（vocab-study、weather-deck）放在同一个工作区下。
+- 整目录搬移 256 个文件 / 4.99 MB，搬完逐项核对：文件数一致、`DesktopCat.exe` 的 sha256 不变（`DD7E3E145CADA9721D90244DCB005BF762E65EAD8001F3503568E7B1C8CD6F6C`）、`git status` 干净、HEAD 仍是 `34990b1`、两个远端（origin=GitHub / gitee）不受影响。
+- `pet.ps1` 用 `$MyInvocation` + `Split-Path` 定位自身目录，不依赖绝对路径，所以程序在任何位置都能跑；仓库里唯一的写死路径在 `tools\gif-survey.py`（一次性调查脚本），已同步改成新路径。
+- 发布素材（桌面 `桌面小猫-发布素材\`）和文案（`Documents\DesktopCat-*.md`）**不跟着搬**：这些路径已经写进索引、步骤文档和上下文快照，搬动收益低、改动面大。

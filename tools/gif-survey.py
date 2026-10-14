@@ -1,7 +1,7 @@
 import os, sys
 from PIL import Image, ImageSequence
 
-D = r'C:\Users\21653\Documents\deepseek-harness\default-workspace\MikuDesktop\cat-assets\ex-F-cat-anim-pack'
+D = r'F:\DeepSeek Harness\projects\desktop-cat\cat-assets\ex-F-cat-anim-pack'
 
 def content_bbox(img):
     """The app treats white as transparent (it 'punches' white out), so the real
