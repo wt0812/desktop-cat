@@ -582,7 +582,7 @@
 产出：96 帧 / 760x428 / 80ms，7.7 秒，237 KB。分发到 `04-少数派\2-article-demo.gif`、`05-Appinn\1-demo.gif`、
 仓库 `docs/demo.gif`。另外把 `DesktopCat-少数派投稿.md` 拆成可直接粘贴的三份（正文 / 信息卡 / 操作步骤）。
 
-## D-41 代码仓库工作副本迁到 projects 目录（2026-10-12）
+## D-41 代码仓库工作副本迁到 projects 目录（2026-10-14）
 
 - 仓库工作副本从 `C:\Users\21653\Documents\deepseek-harness\default-workspace\MikuDesktop` 迁到 `F:\DeepSeek Harness\projects\desktop-cat`，目的是和本机其它项目（vocab-study、weather-deck）放在同一个工作区下。
 - 整目录搬移 256 个文件 / 4.99 MB，搬完逐项核对：文件数一致、`DesktopCat.exe` 的 sha256 不变（`DD7E3E145CADA9721D90244DCB005BF762E65EAD8001F3503568E7B1C8CD6F6C`）、`git status` 干净、HEAD 仍是 `34990b1`、两个远端（origin=GitHub / gitee）不受影响。
